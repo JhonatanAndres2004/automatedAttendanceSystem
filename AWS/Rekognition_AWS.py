@@ -1,18 +1,26 @@
 import boto3
 import json
 import os
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'interface', '.env')
+
+load_dotenv(dotenv_path)
+
+
 client=boto3.client('rekognition')
+
 def lambda_handler(event, context):
 
     #Credentials are optionals as we are accessing from the same AWS user
     s3 = boto3.client('s3',
-        aws_access_key_id='AWS_ACCESS_KEY',
-        aws_secret_access_key='AWS_SECRET_ACCESS_KEY',
-        region_name='AWS_REGION_NAME'
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("REGION_NAME")
     )
 
     #Define bucket name to access
-    bucket_name = 'uninorteutomatedattendancesystem'
+    bucket_name = os.getenv("BUCKET_NAME")
     #Download a file to simulate obtaining the frame of the camera. Also define the S3 path to the id photo of the studend
     student_id_photo="single.jpeg"
     camera_file_name = 'big_group_photo.jpg' 
