@@ -6,3 +6,5 @@ ImagesDeepface/
 students/
 classroom/
 StudentsFoundInClassroom/
+__pycache__/
+*.py[cod]
