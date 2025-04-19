@@ -2,9 +2,11 @@ node_modules/
 .env
 ImagesRekognition/
 ImagesDeepface/
+Data/
 .venv/
 students/
 classroom/
 StudentsFoundInClassroom/
 __pycache__/
 *.py[cod]
+
