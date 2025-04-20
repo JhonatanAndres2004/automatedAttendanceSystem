@@ -45,7 +45,7 @@ def main():
 
         for student_name in student_array:
             student_found = False
-            student_id_photo = r"../../students" + rf"\{student_name}.jpeg"
+            student_id_photo = r"../../students" + rf"/{student_name}.jpeg"
             with open(student_id_photo, 'rb') as image_file:
                 student_id_photo_bytes = image_file.read()
 
@@ -80,7 +80,7 @@ def main():
         boundingBoxRecognizedFaces.append(boundingBoxRecognizedFacesithImage)
         
         os.makedirs("../../StudentsFoundInClassroom", exist_ok=True)
-        output_path = rf"../../StudentsFoundInClassroom\faces_in_classroom_{m}_{recognized_counter}.jpeg"
+        output_path = rf"../../StudentsFoundInClassroom/faces_in_classroom_{m}_{recognized_counter}.jpeg"
         cv2.imwrite(output_path, image)
         print(f"Annotated image saved to {output_path}")
         

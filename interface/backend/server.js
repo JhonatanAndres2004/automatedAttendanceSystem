@@ -6,6 +6,8 @@ import { exec } from "child_process";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import https from "https"
+import os, { platform } from "os";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +18,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Function to handle MySQL reconnection
+//  Function to handle MySQL reconnection
 let db;
 
 function handleDatabaseConnection() {
@@ -47,18 +49,18 @@ function handleDatabaseConnection() {
   });
 }
 
-// 🔄 Initialize DB connection
+//  Initialize DB connection
 handleDatabaseConnection();
 
-// ✅ Get all students
-// Obtener estudiantes de una tabla específica
+
+// Retrieve students from a specific table
 app.get("/students/:table", (req, res) => {
   const { table } = req.params;
 
-  // Validar que el nombre de la tabla es uno de los permitidos
+  // Validate that the table name is one of the allowed ones
   const allowedTables = ["robotica", "diseno1", "diseno2"];
   if (!allowedTables.includes(table)) {
-    return res.status(400).json({ error: "Tabla inválida" });
+    return res.status(400).json({ error: "Invalid table" });
   }
 
   db.query(`SELECT student_name, attendances FROM ${table}`, (err, results) => {
@@ -70,37 +72,138 @@ app.get("/students/:table", (req, res) => {
   });
 });
 
+app.get('/historics/:table/:student_name', (req, res) => {
+  const { table, student_name } = req.params;
+  const allowedTables = ["robotica_records", "diseno1_records", "diseno2_records"];
+
+  if (!allowedTables.includes(table)) {
+    return res.status(400).json({ error: "Invalid table" });
+  }
+
+  const query = `SELECT attendance_date FROM ${table} WHERE student_name = ? ORDER BY attendance_date DESC`;
+
+  db.query(query, [student_name], (err, results) => {
+    if (err) {
+      console.error("Error fetching attendance records:", err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    res.json({ records: results });
+  });
+});
+
+
 
 // Update attendance
 app.post('/update-attendances/:table', (req, res) => {
   const { students } = req.body;
   const { table } = req.params;
-  
+
   // Validate inputs
   if (!students || !Array.isArray(students) || students.length === 0) {
-    return res.status(400).json({ error: "Lista de estudiantes inválida." });
-  }
-  
-  // Validate table name to prevent SQL injection
-  const allowedTables = ["robotica", "diseno1", "diseno2"];
-  if (!allowedTables.includes(table)) {
-    return res.status(400).json({ error: "Tabla inválida" });
+    return res.status(400).json({ error: "Invalid student list." });
   }
 
-  // Use a proper parameterized query with placeholders
-  const query = `UPDATE ${table} SET attendances = attendances + 1 WHERE student_name IN (?)`;
-  
-  db.query(query, [students], (err, results) => {
+  // Secure table name
+  const allowedTables = ["robotica", "diseno1", "diseno2"];
+  if (!allowedTables.includes(table)) {
+    return res.status(400).json({ error: "Invalid table." });
+  }
+
+  const recordsTable = `${table}_records`;
+
+  // Get current date in Bogota timezone (only the date part)
+  const bogotaDate = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }))
+    .toISOString().split('T')[0]; // Format: 'YYYY-MM-DD'
+
+  // Step 1: Update the attendance count
+  const updateQuery = `UPDATE ${table} SET attendances = attendances + 1 WHERE student_name IN (?)`;
+
+  db.query(updateQuery, [students], (err, result) => {
     if (err) {
       console.error("Error updating attendance:", err);
       return res.status(500).json({ error: err.message });
     }
-    res.json({ 
-      success: true, 
-      message: `Updated ${results.affectedRows} student records` 
+
+    // Step 2: Insert attendance record (avoiding duplicates for the same day)
+    const insertValues = students.map(name => [name, bogotaDate]);
+
+    const insertQuery = `INSERT INTO ${recordsTable} (student_name, attendance_date)
+                         VALUES ? 
+                         ON DUPLICATE KEY UPDATE attendance_date = attendance_date`;
+
+    db.query(insertQuery, [insertValues], (err2, result2) => {
+      if (err2) {
+        console.error("Error inserting attendance records:", err2);
+        return res.status(500).json({ error: err2.message });
+      }
+
+      res.json({
+        success: true,
+        updated: result.affectedRows,
+        inserted: result2.affectedRows,
+        message: `Updated ${result.affectedRows} records and inserted history entries.`
+      });
     });
   });
 });
+
+
+app.get('/attendance-matrix/:table', async (req, res) => {
+  const { table } = req.params;
+
+  const allowedTables = ["robotica", "diseno1", "diseno2"];
+  if (!allowedTables.includes(table)) {
+    return res.status(400).json({ error: "Invalid table" });
+  }
+
+  const recordTable = `${table}_records`;
+
+  try {
+    // 1. Fetch all unique attendance dates
+    const [dateResults] = await db.promise().query(`
+      SELECT DISTINCT DATE(attendance_date) AS date FROM ${recordTable}
+    `);
+    const dates = dateResults.map(row => new Date(row.date).toISOString().split("T")[0]).sort();
+
+    // 2. Fetch all students from the base table
+    const [studentResults] = await db.promise().query(`
+      SELECT student_name FROM ${table}
+    `);
+    const studentNames = studentResults.map(row => row.student_name);
+
+    // 3. Fetch all attendance records
+    const [attendanceResults] = await db.promise().query(`
+      SELECT student_name, DATE(attendance_date) AS date FROM ${recordTable}
+    `);
+
+    // 4. Convert attendance records to a Set for quick lookup
+    const attendanceSet = new Set(
+      attendanceResults.map(({ student_name, date }) => {
+        const formatedDate = new Date(date).toISOString().split("T")[0]
+        return `${student_name}_${formatedDate}`
+      })
+    );
+
+    // 5. Build matrix
+    const data = studentNames.map(name => {
+      const row = { student_name: name };
+      dates.forEach(date => {
+        const formattedDate = new Date(date).toISOString().split("T")[0];
+        const key = `${name}_${formattedDate}`;
+        row[formattedDate] = attendanceSet.has(key) ? 1 : 2;
+      });
+      return row;
+    });
+    //const formattedDates = new Date(dates).toISOString().split("T")[0];
+    res.json({ dates, data });
+
+  } catch (err) {
+    console.error("Error fetching attendance matrix:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 
 app.post("/run-backend", (req, res) => {
   const { table } = req.body;
@@ -108,14 +211,14 @@ app.post("/run-backend", (req, res) => {
   // Validar la tabla
   const allowedTables = ["robotica", "diseno1", "diseno2"];
   if (!allowedTables.includes(table)) {
-    return res.status(400).json({ error: "Tabla inválida" });
+    return res.status(400).json({ error: "Invalid table" });
   }
   
   const scriptPath = path.join(__dirname, "../../backend.py");
   
   console.log(`Attempting to execute Python script at: ${scriptPath}`);
   
-  // Check if the file exists
+  // Check if the file exists 
   if (!fs.existsSync(scriptPath)) {
     console.error(`Script not found at: ${scriptPath}`);
     return res.status(500).json({ 
@@ -123,9 +226,15 @@ app.post("/run-backend", (req, res) => {
       path: scriptPath 
     });
   }
-  
-  const pythonPath = path.join(__dirname, "../../.venv/Scripts/python.exe");
-  // Pasar la tabla como argumento al script Python
+  const op = os.platform()
+  let pythonPath
+    if (op === "win32"){
+      pythonPath = path.join(__dirname, "../../.venv/Scripts/python.exe");
+    } else if (op === "linux"){ //
+      pythonPath = path.join(__dirname,"../../.venv/bin/python3")
+    }
+    
+  //Pass the table as an argument to the Python Script
   const command = `${pythonPath} "${scriptPath}" --table ${table}`;
   
   console.log(`Executing: ${command}`);
@@ -231,6 +340,12 @@ app.get("/photo/:filename", (req, res) => {
   res.sendFile(filePath);
 });
 
+const sslOptions = {
+  key: fs.readFileSync(process.env.VITE_SSL_KEY),
+  cert: fs.readFileSync(process.env.VITE_SSL_CERT)
+}
 //  Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+https.createServer(sslOptions, app).listen(PORT, () => {
+  console.log(`HTTPS server running on port ${PORT} on ${os.platform}`)
+})

@@ -31,7 +31,7 @@ for folder in folders:
         os.makedirs(folder)
 
 # Get frame from camera
-#get_frame.main()
+get_frame.main()
 
 # Set up MySQL connection
 conn = mysql.connector.connect(
@@ -75,28 +75,28 @@ for student in students:
 
 classroom_folder = "../../classroom"
 # Definir el mapeo de archivos de aula específicos para cada curso
-classroom_file_map = {
-    "robotica": "int_robotica11.jpg",
-    "diseno1": "diseno1_1.jpg",
-    "diseno2": "diseno2_9.jpg"
-}
+# classroom_file_map = {
+#     "robotica": "int_robotica11.jpg",
+#     "diseno1": "diseno1_1.jpg",
+#     "diseno2": "diseno2_9.jpg"
+# }
 
-# Descargar la imagen específica del aula según el curso seleccionado
-try:
-#     # Obtener el nombre de archivo correcto basado en la tabla seleccionada
-    classroom_file = classroom_file_map.get(table_name)
+# # Descargar la imagen específica del aula según el curso seleccionado
+# try:
+# #     # Obtener el nombre de archivo correcto basado en la tabla seleccionada
+#     classroom_file = classroom_file_map.get(table_name)
    
-    if classroom_file:
-#         # Define la ruta local donde se guardará la imagen
-        local_file_path = os.path.join(classroom_folder, classroom_file)
+#     if classroom_file:
+# #         # Define la ruta local donde se guardará la imagen
+#         local_file_path = os.path.join(classroom_folder, classroom_file)
         
-#         # Descarga la imagen específica del aula desde S3
-        s3.download_file(S3_BUCKET, classroom_file, local_file_path)
-        print(f" Classroom image downloaded: {classroom_file}")
-    else:
-        print(f" No specific classroom image defined for table: {table_name}")
-except Exception as e:
-    print(f" Error downloading classroom image: {str(e)}")
+# #         # Descarga la imagen específica del aula desde S3
+#         s3.download_file(S3_BUCKET, classroom_file, local_file_path)
+#         print(f" Classroom image downloaded: {classroom_file}")
+#     else:
+#         print(f" No specific classroom image defined for table: {table_name}")
+# except Exception as e:
+#     print(f" Error downloading classroom image: {str(e)}")
 
 # Save downloaded student names to a text file
 txt_file_path = os.path.join(save_folder, "students_downloaded.txt")
