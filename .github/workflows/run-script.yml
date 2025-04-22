@@ -76,7 +76,26 @@ jobs:
             
             echo "Protected .vite directory from removal"
     
+
+
+      - name: Protect .vite directory from being removed
+        run: |
+                VITENOD_DIR=~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/node_modules/.vite/deps
+                
+                mkdir -p $VITENOD_DIR
+                
+                touch $VITENOD_DIR/.runner_preserve
+                
+                mkdir -p ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/.git/info
+                echo "interface/.vite/" >> ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/.git/info/exclude
+                
+                echo "Protected "
+
+
+
             
       - name: Restart pm2 tasks
         run: |
             sudo pm2 restart all
+
+
