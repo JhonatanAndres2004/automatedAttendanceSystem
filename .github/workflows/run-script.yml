@@ -9,6 +9,11 @@ jobs:
     runs-on: self-hosted
 
     steps:
+
+      - name: Stop React-App
+        run: |
+                sudo pm2 stop React-Dev-App
+
       - name: Checkout código
         uses: actions/checkout@v3
 
@@ -25,8 +30,6 @@ jobs:
         run: |
           cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
           npm install                
-
-
 
       - name: Create Virtual Environment and install requirements
         run: |
@@ -56,7 +59,7 @@ jobs:
             
             if [ -f "../requeriments.txt" ]; then
                 pip install -r ../requeriments.txt
-                echo "Dependencies installes"
+                echo "Dependencies installed"
             else
                 echo "File not found"
             fi
@@ -64,4 +67,7 @@ jobs:
             deactivate
 
 
-
+      - name: Restart PM2
+        run: |
+                sudo pm2 restart React-Dev-App
+                sudo pm2 restart WebServer
