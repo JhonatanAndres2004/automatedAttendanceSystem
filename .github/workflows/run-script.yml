@@ -16,6 +16,10 @@ jobs:
         run: |
             pwd
 
+      - name: Create directories if they don't exist
+        run: |
+          mkdir -p ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
+
       - name: Copy .env files
         run: |
           cp ~/actions-runner/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
@@ -24,16 +28,13 @@ jobs:
           
           echo "Correctly copied"
 
-      - name: install
+      - name: Install npm dependencies
         run: |
           cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
-          npm install                
+          npm install
 
-
-      - name: Restart pm2 tasks
-        run: |
-            sudo pm2 restart all
-
+          chmod -R 777 node_modules
+          chmod -R 777 .vite 2>/dev/null || true
 
       - name: Create Virtual Environment and install requirements
         run: |
@@ -46,13 +47,21 @@ jobs:
             
             # Install dependencies if requeriments.txt
             if [ -f "requirements.txt" ]; then
-            pip install -r requeriments.txt
-            echo "Dependencies installes"
-            else
-            echo "File not found"
+              pip install -r requirements.txt
+              echo "Dependencies installed"
+            else 
+              if [ -f "requeriments.txt" ]; then
+                pip install -r requeriments.txt
+                echo "Dependencies installed"
+              else
+                echo "File not found"
+              fi
             fi
  
             deactivate
+            
+            # Ajustar permisos para que el runner pueda limpiar después
+            chmod -R 777 .venv
 
 
             cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
@@ -61,11 +70,29 @@ jobs:
             
             source .venv/bin/activate
             
-            if [ -f "../requeriments.txt" ]; then
-                pip install -r ../requeriments.txt
-                echo "Dependencies installes"
+            if [ -f "../requirements.txt" ]; then
+                pip install -r ../requirements.txt
+                echo "Dependencies installed"
             else
-                echo "File not found"
+                if [ -f "../requeriments.txt" ]; then
+                  pip install -r ../requeriments.txt
+                  echo "Dependencies installed"
+                else
+                  echo "File not found"
+                fi
             fi
             
             deactivate
+            
+            chmod -R 777 .venv
+
+      - name: Restart pm2 tasks
+        run: |
+            sudo pm2 restart all
+
+      - name: Fix permissions to prevent future cleanup errors
+        run: |
+            chmod -R 777 ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/node_modules 2>/dev/null || true
+            chmod -R 777 ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/.vite 2>/dev/null || true
+            chmod -R 777 ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/.venv 2>/dev/null || true
+            chmod -R 777 ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/.venv 2>/dev/null || true
