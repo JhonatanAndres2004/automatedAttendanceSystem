@@ -10,9 +10,6 @@ jobs:
 
     steps:
 
-      - name: Stop React-App
-        run: |
-                sudo pm2 stop React-Dev-App
 
       - name: Delete manually trouble-shooting folders
         run: |        
@@ -52,13 +49,7 @@ jobs:
         uses: actions/checkout@v3
 
 
-      - name: Copy .env files
-        run: |
-          cp ~/actions-runner/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
-          
-          cp ~/actions-runner/_work/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
-          
-          echo "Correctly copied"
+
 
       - name: install
         run: |
@@ -101,7 +92,3 @@ jobs:
             deactivate
 
 
-      - name: Restart PM2
-        run: |
-                sudo pm2 restart React-Dev-App
-                sudo pm2 restart WebServer
