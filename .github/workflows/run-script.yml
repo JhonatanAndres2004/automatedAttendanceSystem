@@ -33,3 +33,39 @@ jobs:
       - name: Restart pm2 tasks
         run: |
             sudo pm2 restart all
+
+
+      - name: Create Virtual Environment and install requirements
+        run: |
+            cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem
+            
+            python3 -m venv .venv
+            
+            #Activate VE
+            source .venv/bin/activate
+            
+            # Install dependencies if requeriments.txt
+            if [ -f "requirements.txt" ]; then
+            pip install -r requeriments.txt
+            echo "Dependencies installes"
+            else
+            echo "File not found"
+            fi
+ 
+            deactivate
+
+
+            cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
+          
+            python3 -m venv .venv
+            
+            source .venv/bin/activate
+            
+            if [ -f "../requeriments.txt" ]; then
+                pip install -r ../requeriments.txt
+                echo "Dependencies installes"
+            else
+                echo "File not found"
+            fi
+            
+            deactivate
