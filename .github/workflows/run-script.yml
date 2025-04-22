@@ -20,7 +20,7 @@ jobs:
         run: |
           cp ~/actions-runner/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
           
-          cp ~/work/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
+          cp ~/actions-runner/_work/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
           
           echo "Correctly copied"
           - name: Copy .env files
