@@ -25,6 +25,13 @@ jobs:
             echo "node_modules not found"
           fi
 
+          if [ -d "classroom" ]; then
+            sudo rm -r classroom
+            echo "Deleted classroom"
+          else
+            echo "classroom not found"
+          fi
+
           cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
 
           if [ -d "students" ]; then
