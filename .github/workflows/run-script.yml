@@ -14,7 +14,7 @@ jobs:
         run: |
                 sudo pm2 stop React-Dev-App
 
-      - name: Copy .env files
+      - name: Delete manually trouble-shooting folder
         run: |        
             cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
             sudo rm -r node_modules
