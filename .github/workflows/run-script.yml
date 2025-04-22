@@ -16,14 +16,30 @@ jobs:
 
       - name: Delete manually trouble-shooting folders
         run: |        
-            cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
-            sudo rm -r node_modules
-            echo "Correctly Deleted Node and vite modules"
+          cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
 
-            cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
+          if [ -d "node_modules" ]; then
+            sudo rm -r node_modules
+            echo "Deleted node_modules"
+          else
+            echo "node_modules not found"
+          fi
+
+          cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
+
+          if [ -d "students" ]; then
             sudo rm -r students
+            echo "Deleted students folder"
+          else
+            echo "students folder not found"
+          fi
+
+          if [ -d "StudentsFoundInClassroom" ]; then
             sudo rm -r StudentsFoundInClassroom
-            echo "Correctly Deleted images folder"
+            echo "Deleted StudentsFoundInClassroom folder"
+          else
+            echo "StudentsFoundInClassroom folder not found"
+          fi
 
       - name: Checkout código
         uses: actions/checkout@v3
