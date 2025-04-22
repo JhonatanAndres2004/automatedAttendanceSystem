@@ -24,7 +24,7 @@ jobs:
       - name: install
         run: |
           cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
-          sudo npm install                
+          npm install                
 
 
 
