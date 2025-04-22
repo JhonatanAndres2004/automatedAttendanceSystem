@@ -1,16 +1,36 @@
-name: CI Push On Main
+name: Configurar Entorno en Push a Main
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  build:
-    runs-on: self-hosted 
-    
+  setup-env:
+    runs-on: self-hosted
+
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Execute initial command
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Print initial location
         run: |
-          echo "¡Push on main!"
+            pwd"
+
+      - name: Copy .env files
+        run: |
+          cp ~/actions-runner/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
+          
+          cp ~/work/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
+          
+          echo "Correctly copied"
+          - name: Copy .env files
+
+      - name: install
+        run: |
+          cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
+          npm install                
+
+
+      - name: Restart pm2 tasks
+        run: |
+            sudo pm2 restart all
