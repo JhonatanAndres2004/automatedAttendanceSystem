@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import ImageButton from "./ImageButton";
-import customIcon from './assets/history-icon.png';
 import axios from 'axios';
+import { Chart } from "react-google-charts";
 import './Attendance.css';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -23,11 +22,42 @@ function Attendance() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentRecords, setStudentRecords] = useState([]);
   const [showNewMenu, setShowNewMenu] = useState(false);
-
+  const [dates, setDates] = useState([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [sysPrediction, SetSysPrediction] = useState([]);
 
   const table = COURSE_TABLES[selectedCourse];
 
+  // Window resize handler
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setWindowWidth(width);
+      if (width > 600) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  async function fetchDates(course) {
+    try {
+      const res = await axios.get(`${API_URL}/attendance-matrix/${course}`);
+      return res.data.dates;
+    } catch (err) {
+      console.error("Error retrieving dates:", err);
+      return [];
+    }
+  }
   
+  async function loadDates(course) {
+    const fetchedDates = await fetchDates(course);
+    setDates(fetchedDates);
+  }
+
   const fetchStudents = () => {
     fetch(`${API_URL}/students/${table}`)
       .then((res) => res.json())
@@ -58,7 +88,7 @@ function Attendance() {
           setSelectedPhoto(data.photos[0]);
         }
       })
-      .catch((err) => console.error("Failend to obtain photos:", err));
+      .catch((err) => console.error("Failed to obtain photos:", err));
   };
 
   const takeAttendance = () => {
@@ -74,10 +104,15 @@ function Attendance() {
         const updatedToggles = { ...recognizedStudents };
         recognized.forEach((name) => {
           updatedToggles[name] = true;
+          if (!sysPrediction.includes(name)){
+            SetSysPrediction((prev) => [...prev, name]);
+          }
+            
         });
         setRecognizedStudents(updatedToggles);
         fetchClassroomPhotos();
         setIsLoading(false);
+        setIsMobileMenuOpen(false);
       })
       .catch((err) => {
         console.error("Error taking attendance:", err);
@@ -95,6 +130,49 @@ function Attendance() {
       return;
     }
 
+    const presentStudents = Object.keys(recognizedStudents).filter(name => recognizedStudents[name] === true);
+    console.log(sysPrediction)
+    console.log(presentStudents)
+    let TP = 0
+    let FP = 0
+    let FN = 0
+    sysPrediction.forEach((name) => {
+      if (presentStudents.includes(name)){
+        TP += 1
+      }
+      else {
+        FP += 1
+      }
+    })
+
+    presentStudents.forEach((name) =>{
+      if(!sysPrediction.includes(name)){
+        FN += 1
+      }
+    })
+
+    console.log (`TP:${TP}, FP:${FP}, FN:${FN}`)
+
+    fetch(`${API_URL}/metrics`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        TP: TP,
+        FP: FP,
+        FN: FN
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Success:', data);
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
+
+
     fetch(`${API_URL}/update-attendances/${table}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -111,6 +189,7 @@ function Attendance() {
           return updated;
         });
         fetchStudents();
+        setIsMobileMenuOpen(false);
       })
       .catch((err) => console.error("Error saving attendance:", err));
   };
@@ -129,31 +208,32 @@ function Attendance() {
         let dates = data.records || []
         dates.forEach((date) =>{
           date.attendance_date = new Date(date.attendance_date).toLocaleDateString("en-GB",{
+            timeZone: "America/Bogota", 
             day: "2-digit",
             month: "short",
             year: "numeric"
           })
-          //setStudentRecords(formatDate);  
         })
         setStudentRecords(dates || []);
         setSelectedStudent(studentName);
         setShowHistorics(true);
-        setShowNewMenu(false); // Close new menu when showing historics
-        console.log(studentRecords)
+        setShowNewMenu(false);
+        setIsMobileMenuOpen(false);
       })
       .catch((err) => console.error("Error retrieving historics:", err));
   };
   
   function formatName(concatenatedName) {
-    // Split by capital letters using a regular expression
     const parts = concatenatedName.match(/[A-Z][a-z]+/g);
-    if (!parts || parts.length < 2) return concatenatedName; // fallback
-    return `${parts[1]} ${parts[0]}`; // first name + last name
+    if (!parts || parts.length < 2) return concatenatedName;
+    return `${parts[1]} ${parts[0]}`;
   }
   
   const openNewMenu = () => {
     setShowNewMenu(true);
-    setShowHistorics(false); // Close historics when opening new menu
+    setShowHistorics(false);
+    loadDates(table);
+    setIsMobileMenuOpen(false);
   };
   
   function AttendanceMatrix({ course }) {
@@ -168,261 +248,414 @@ function Attendance() {
         })
         .catch(err => console.error("Error retrieving attendance matrix:", err));
     }, [course]);
-  
-    return (
-      <div className="table-container">
-  <table className="attendance-table">
-    <thead>
-      <tr>
-        <th>Estudiante</th>
-        {dates.map(date => (
-          <th key={date}>{date}</th>
-        ))}
-      </tr>
-    </thead>
-    <tbody>
-      {matrix.map(row => (
-        <tr key={row.student_name}>
-          <td>{row.student_name}</td>
-          {dates.map(date => (
-            <td
-              key={date}
-              className={row[date] === 1 ? "present" : "absent"}
-            >
-              {row[date] === 1 ? "✓" : "✗"}
-            </td>
-          ))}
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-          );
-  }
-  
 
-  // Function to render the main content
-  const renderContent = () => {
-    if (showNewMenu) {
-      return (
-        <div>
-          <button
-            onClick={() => setShowNewMenu(false)}
-            style={{
-              marginBottom: "10px",
-              padding: "8px 12px",
-              backgroundColor: "#f44336",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-            Close
-          </button>
-          <AttendanceMatrix course ={table}/>
-          {/* Add your new menu content here */}
-          
-        </div>
-      );
-    } else if (showHistorics) {
-      return (
-        <div>
-          <h2>Historics of {formatName(selectedStudent)}</h2>
-          <button
-            onClick={() => setShowHistorics(false)}
-            style={{
-              marginBottom: "10px",
-              padding: "8px 12px",
-              backgroundColor: "#f44336",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer"
-            }}
-          >
-          close
-          </button>
-          <table border="1" style={{ borderCollapse: "collapse", width: "100%" }}>
+    return (
+      <div className="matrix-container">
+        <h2 className="matrix-title">Attendance Record</h2>
+        <div className="table-container">
+          <table className="attendance-table">
             <thead>
-              <tr style={{ backgroundColor: "#f2f2f2" }}>
-                <th style={{ padding: "8px" }}>Date</th>
+              <tr>
+                <th>Student</th>
+                {dates.map(date => (
+                  <th key={date}>{date}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {studentRecords.map((record, index) => (
-                <tr key={index}>
-                  <td style={{ padding: "8px" }}>{record.attendance_date}</td>
+              {matrix.map(row => (
+                <tr key={row.student_name}>
+                  <td onClick={() => fetchHistorics(row.student_name)} className="student-name">
+                    {row.student_name}
+                    <span className="view-details">View Details</span>
+                  </td>
+                  {dates.map(date => (
+                    <td
+                      key={date}
+                      className={row[date] === 1 ? "present" : "absent"}
+                    >
+                      {row[date] === 1 ? "✓" : "✗"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+  
+  // Function to render the tab-style course selector
+  const renderCourseTabs = () => {
+    return (
+      <div className="folder-tabs">
+        {Object.keys(COURSE_TABLES).map((course) => (
+          <div 
+            key={course}
+            className={`folder-tab ${selectedCourse === course ? 'active-tab' : ''}`}
+            onClick={() => setSelectedCourse(course)}
+          >
+            <div className="tab-content">
+              <span className="tab-text">{course}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // FIXED: Made toggleMobileMenu function that directly updates state
+  const toggleMobileMenu = () => {
+    console.log("Mobile menu toggle button clicked, current state:", isMobileMenuOpen);
+    setIsMobileMenuOpen(prevState => !prevState);
+  };
+
+  // FIXED: Mobile menu component with explicit styles to ensure visibility
+  const MobileMenuButton = () => {
+    return (
+      <button
+        onClick={toggleMobileMenu}
+        style={{
+          display: 'block',
+          width: '100%',
+          padding: '12px',
+          backgroundColor: '#e5e4d2',
+          color: '#621717',
+          border: 'none',
+          borderRadius: '6px',
+          marginBottom: '15px',
+          cursor: 'pointer',
+          fontSize: '16px',
+          fontWeight: '500',
+          textAlign: 'center'
+        }}
+      >
+        {isMobileMenuOpen ? "Close Menu ▲" : "Open Menu ▼"}
+      </button>
+    );
+  };
+
+  // Responsive students table
+  const renderStudentsTable = () => {
+    if (windowWidth <= 480) {
+      return (
+        <div className="students-table-container mobile-table-container">
+          {students.map((student) => (
+            <div
+              key={student.student_name}
+              className={`mobile-student-row ${recognizedStudents[student.student_name] ? "recognized" : ""}`}
+            >
+              <div className="student-name">{student.student_name}</div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={!!recognizedStudents[student.student_name]}
+                  onChange={() => toggleStudent(student.student_name)}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+          ))}
+        </div>
+      );
+    } else {
+      return (
+        <div className="students-table-container">
+          <table className="students-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Present</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student) => (
+                <tr
+                  key={student.student_name}
+                  className={recognizedStudents[student.student_name] ? "recognized" : ""}
+                >
+                  <td className="student-name">{student.student_name}</td>
+                  <td className="attendance-toggle">
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={!!recognizedStudents[student.student_name]}
+                        onChange={() => toggleStudent(student.student_name)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       );
+    }
+  };
+
+  // Function to render the main content
+  const renderContent = () => {
+    if (showNewMenu) {
+      return (
+        <div className="content-container records-view">
+          <div className="header-bar">
+            <button
+              onClick={() => setShowNewMenu(false)}
+              className="back-button"
+            >
+              <span className="back-icon">←</span> Back to Attendance
+            </button>
+            <h2>Class Attendance Records</h2>
+          </div>
+          <AttendanceMatrix course={table}/>
+        </div>
+      );
+    } else if (showHistorics) {
+      return (
+        <div className="content-container student-history">
+          <div className="header-bar">
+            <button
+              onClick={openNewMenu}
+              className="back-button"
+            >
+              <span className="back-icon">←</span> Back to Records
+            </button>
+            <h2>History of {formatName(selectedStudent)}</h2>
+          </div>
+          
+          <div className="stats-container">
+            <div className="chart-container">
+              <Chart
+                chartType="PieChart"
+                data={[
+                  ["Attendances", "Numbers"],
+                  ["Present", studentRecords.length],
+                  ["Absent", dates.length - studentRecords.length]
+                ]}
+                options={{
+                  title: "Attendance Summary",
+                  colors: ['#4CAF50', '#F44336'],
+                  is3D: true,
+                  legend: windowWidth < 600 ? { position: 'bottom' } : { position: 'right' },
+                  chartArea: windowWidth < 600 ? { width: '100%', height: '70%' } : { width: '80%', height: '80%' }
+                }}
+                width={"100%"}
+                height={"300px"}
+              />
+            </div>
+            
+            <div className="records-list">
+              <h3>Attendance Dates</h3>
+              <div className="dates-container">
+                {studentRecords.map((record, index) => (
+                  <div key={index} className="date-card">
+                    <span className="date-icon">✓</span>
+                    <span className="date-text">{record.attendance_date}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
     } else {
       return (
-        <div style={{ display: "flex", marginBottom: "20px" }}>
-          <div style={{ flex: "1" }}>
-            {/* Action buttons */}
-            <div style={{ marginBottom: "15px" }}>
+        <div className="content-container main-view">
+          {/* FIXED: Display the mobile menu button on small screens */}
+          {windowWidth <= 600 && <MobileMenuButton />}
+          
+          {/* FIXED: Show mobile menu items when open */}
+          {windowWidth <= 600 && isMobileMenuOpen && (
+            <div 
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                marginBottom: '15px'
+              }}
+            >
+              <div 
+                style={{
+                  backgroundColor: selectedCourse === "Introducción a la Robótica Móvil" ? '#3e5240' : '#f8f9fa',
+                  color: selectedCourse === "Introducción a la Robótica Móvil" ? 'white' : 'black',
+                  padding: '10px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  border: '1px solid #e0e0e0'
+                }}
+                onClick={() => {
+                  setSelectedCourse("Introducción a la Robótica Móvil");
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                Introducción a la Robótica Móvil
+              </div>
+              <div 
+                style={{
+                  backgroundColor: selectedCourse === "Diseño Electrónico 1" ? '#3e5240' : '#f8f9fa',
+                  color: selectedCourse === "Diseño Electrónico 1" ? 'white' : 'black',
+                  padding: '10px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  border: '1px solid #e0e0e0'
+                }}
+                onClick={() => {
+                  setSelectedCourse("Diseño Electrónico 1");
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                Diseño Electrónico 1
+              </div>
+              <div 
+                style={{
+                  backgroundColor: selectedCourse === "Diseño Electrónico 2" ? '#3e5240' : '#f8f9fa',
+                  color: selectedCourse === "Diseño Electrónico 2" ? 'white' : 'black',
+                  padding: '10px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  border: '1px solid #e0e0e0'
+                }}
+                onClick={() => {
+                  setSelectedCourse("Diseño Electrónico 2");
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                Diseño Electrónico 2
+              </div>
+              <div 
+                style={{
+                  backgroundColor: "#31a301",
+                  color: "#ebebeb",
+                  padding: '10px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  border: '1px solid #e0e0e0'
+                  
+                }}
+                onClick={takeAttendance}
+              ><span className="button-icon">📸</span>
+                {isLoading ? "Processing..." : "Take Attendance"}
+              </div>
+              <div 
+                style={{
+                  backgroundColor: "#1f2ca1",
+                  color: "#ebebeb",
+                  padding: '10px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  border: '1px solid #e0e0e0'
+                }}
+                onClick={saveAttendance}
+              ><span className="button-icon">💾</span>
+                Save Attendance
+              </div>
+              <div 
+                style={{
+                  backgroundColor: '#e5e4d2',
+                  color: "#621717",
+                  padding: '10px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  border: '1px solid #e0e0e0'
+                }}
+                onClick={openNewMenu}
+              ><span className="button-icon">📊</span>
+                View Records
+              </div>
+            </div>
+          )}
+
+          {windowWidth > 600 && (
+            <div className="controls-section">
               <button
                 onClick={takeAttendance}
                 disabled={isLoading}
-                style={{
-                  padding: "10px 15px",
-                  backgroundColor: "#2196F3",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: isLoading ? "not-allowed" : "pointer",
-                  opacity: isLoading ? 0.7 : 1
-                }}
+                className={`action-button take-attendance ${isLoading ? 'loading' : ''}`}
               >
-                {isLoading ? "Procesing..." : "Take attendance"}
+                <span className="button-icon">📸</span>
+                {isLoading ? "Processing..." : "Take Attendance"}
               </button>
 
               <button
                 onClick={saveAttendance}
-                style={{
-                  marginLeft: "10px",
-                  padding: "10px 15px",
-                  backgroundColor: "#4CAF50",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer"
-                }}
+                className="action-button save-attendance"
               >
-                Save attendance
+                <span className="button-icon">💾</span>
+                Save Attendance
               </button>
+              
               <button
-          onClick={openNewMenu}
-          style={{
-            marginLeft: "10px",
-            padding: "10px 15px",
-            backgroundColor: "#FF9800",
-            color: "white", 
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer"
-          }}
-        >
-          Record
-        </button>
+                onClick={openNewMenu}
+                className="action-button view-records"
+              >
+                <span className="button-icon">📊</span>
+                View Records
+              </button>
+            </div>
+          )}
+
+          <div className="attendance-grid">
+            <div className="students-section">
+              <h2 className="section-title">Students</h2>
+              {renderStudentsTable()}
             </div>
 
-            {/* Tabla de estudiantes */}
-            <table border="1" style={{ borderCollapse: "collapse", width: "100%" }}>
-              <thead>
-                <tr style={{ backgroundColor: "#f2f2f2" }}>
-                  <th style={{ padding: "8px", textAlign: "center" }}>Historic</th>
-                  <th style={{ padding: "8px", textAlign: "left" }}>Name</th>
-                  <th style={{ padding: "8px", textAlign: "center" }}>Attendances</th>
-                  <th style={{ padding: "8px", textAlign: "center" }}>Present</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((student) => (
-                  <tr
-                    key={student.student_name}
-                    style={{
-                      backgroundColor: recognizedStudents[student.student_name] ? "#e8f5e9" : "white"
-                    }}
-                  >
-                    <td style={{ padding: "8px", textAlign: "center" }}>
-                      <ImageButton
-                        imageSrc={customIcon}
-                        onClick={() => fetchHistorics(student.student_name)}
+            <div className="detection-section">
+              <h2 className="section-title">Detection</h2>
+              <div className="photo-container">
+                {selectedPhoto ? (
+                  <div className="photo-display">
+                    <div className="photo-frame">
+                      <img
+                        src={`${API_URL}/photo/${selectedPhoto}`}
+                        alt="Class Photo"
                       />
-                    </td>
-                    <td style={{ padding: "8px" }}>{student.student_name}</td>
-                    <td style={{ padding: "8px", textAlign: "center" }}>{student.attendances}</td>
-                    <td style={{ padding: "8px", textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={!!recognizedStudents[student.student_name]}
-                        onChange={() => toggleStudent(student.student_name)}
-                        style={{ width: "18px", height: "18px" }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Contenedor de fotos */}
-          <div style={{ flex: "1", marginLeft: "20px" }}>
-            <h2>Detection</h2>
-
-            {selectedPhoto ? (
-              <div style={{ textAlign: "center", border: "1px solid #ddd", borderRadius: "8px", padding: "10px" }}>
-                <img
-                  src={`${API_URL}/photo/${selectedPhoto}`}
-                  alt="Foto seleccionada"
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: "400px",
-                    borderRadius: "4px"
-                  }}
-                />
-                <p style={{ marginTop: "10px", fontWeight: "bold" }}>
-                  {selectedPhoto}
-                </p>
-              </div>
-            ) : (
-              <div style={{
-                border: "1px dashed #ccc",
-                borderRadius: "8px",
-                padding: "40px 20px",
-                textAlign: "center",
-                color: "#757575"
-              }}>
-                {isLoading ? (
-                  <p>Loading image...</p>
+                    </div>
+                    <p className="photo-caption">{selectedPhoto}</p>
+                  </div>
                 ) : (
-                  <p>No photos available. Take attendance to generate photos.</p>
+                  <div className="no-photo">
+                    {isLoading ? (
+                      <div className="loading-indicator">
+                        <div className="spinner"></div>
+                        <p>Processing image...</p>
+                      </div>
+                    ) : (
+                      <div className="empty-state">
+                        <span className="empty-icon">📷</span>
+                        <p>No photos available. Take attendance to generate photos.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       );
     }
   };
-  
+
   return (
-    <div>
-      <h1>{selectedCourse}</h1>
+    <div className="attendance-system">
+      <div className="app-header">
+        <h1 className="app-title">Facial Recognition Attendance System</h1>
+        <img 
+          src="https://pbs.twimg.com/profile_images/1463231524891987972/2KMlg1It_400x400.jpg" 
+          alt="Logo" 
+          className="app-logo" 
+        />
+      </div>
       
-      {/* Always show the "Open New Menu" button, unless already in new menu view */}
+      {/* Show course tabs unless in history or records view and screen is wider than 600px */}
+      {!showHistorics && !showNewMenu && windowWidth > 600 && renderCourseTabs()}
       
-      
-      {/* Show course selection buttons only in the main view */}
-      {!showHistorics && !showNewMenu && (
-        <div style={{ marginBottom: "10px" }}>
-          {Object.keys(COURSE_TABLES).map((course) => (
-            <button
-              key={course}
-              onClick={() => setSelectedCourse(course)}
-              style={{
-                margin: "0 5px",
-                padding: "8px 12px",
-                backgroundColor: selectedCourse === course ? "#4CAF50" : "#f1f1f1",
-                color: selectedCourse === course ? "white" : "black",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer"
-              }}
-            >
-              {course}
-            </button>
-          ))}
-        </div>
-      )}
-      
-      {/* Render the appropriate content based on state */}
-      {renderContent()}
+      {/* Main content area */}
+      <div className="content-wrapper">
+        {renderContent()}
+      </div>
     </div>
   );
 }

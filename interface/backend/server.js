@@ -148,6 +148,45 @@ app.post('/update-attendances/:table', (req, res) => {
   });
 });
 
+app.post('/metrics', (req, res) => {
+  const { TP, FP, FN } = req.body;
+
+  // First, select the current TP, FP, FN
+  const selectSql = 'SELECT TP, FP, FN FROM metrics WHERE id = ?'; 
+  const updateSql = 'UPDATE metrics SET TP = ?, FP = ?, FN = ? WHERE id = ?';
+
+  const recordId = 1; 
+
+  db.query(selectSql, [recordId], (err, results) => {
+    if (err) {
+      console.error('Database SELECT error:', err);
+      return res.status(500).json({ error: 'Database select error' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    // Get existing values
+    const current = results[0];
+
+    // Calculate new totals
+    const newTP = current.TP + TP;
+    const newFP = current.FP + FP;
+    const newFN = current.FN + FN;
+
+    // Now update the database with the new totals
+    db.query(updateSql, [newTP, newFP, newFN, recordId], (err, result) => {
+      if (err) {
+        console.error('Database UPDATE error:', err);
+        return res.status(500).json({ error: 'Database update error' });
+      }
+      res.status(200).json({ message: 'Data updated successfully' });
+    });
+  });
+});
+
+
 
 app.get('/attendance-matrix/:table', async (req, res) => {
   const { table } = req.params;
