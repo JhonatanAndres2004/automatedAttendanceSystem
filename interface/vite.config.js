@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     server: {
-      port:80,
+      port:443,
       host: true,
       https: {
         key: fs.readFileSync(path.resolve(__dirname, env.VITE_SSL_KEY)),

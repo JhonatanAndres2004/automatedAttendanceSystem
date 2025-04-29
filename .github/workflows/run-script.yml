@@ -1,0 +1,107 @@
+name: Configurar Entorno en Push a Main
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  setup-env:
+    runs-on: self-hosted
+
+    steps:
+
+      - name: Stop React-App
+        run: |
+                sudo pm2 stop React-Dev-App
+
+      - name: Delete manually trouble-shooting folders
+        run: |        
+          cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
+
+          if [ -d "node_modules" ]; then
+            sudo rm -r node_modules
+            echo "Deleted node_modules"
+          else
+            echo "node_modules not found"
+          fi
+
+          cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
+
+          if [ -d "students" ]; then
+            sudo rm -r students
+            echo "Deleted students folder"
+          else
+            echo "students folder not found"
+          fi
+
+          if [ -d "StudentsFoundInClassroom" ]; then
+            sudo rm -r StudentsFoundInClassroom
+            echo "Deleted StudentsFoundInClassroom folder"
+          else
+            echo "StudentsFoundInClassroom folder not found"
+          fi
+
+          if [ -d "classroom" ]; then
+            sudo rm -r classroom
+            echo "Deleted classroom"
+          else
+            echo "classroom not found"
+          fi
+
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+
+      - name: Copy .env files
+        run: |
+          cp ~/actions-runner/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/
+          
+          cp ~/actions-runner/_work/.env ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface/
+          
+          echo "Correctly copied"
+
+      - name: install
+        run: |
+          cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
+          npm install                
+
+      - name: Create Virtual Environment and install requirements
+        run: |
+            cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem
+            
+            python3 -m venv .venv
+            
+            #Activate VE
+            source .venv/bin/activate
+            
+            # Install dependencies if requeriments.txt
+            if [ -f "requeriments.txt" ]; then
+            pip install -r requeriments.txt
+            echo "Dependencies installed"
+            else
+            echo "File not found"
+            fi
+ 
+            deactivate
+
+
+            cd ~/actions-runner/_work/automatedAttendanceSystem/automatedAttendanceSystem/interface
+          
+            python3 -m venv .venv
+            
+            source .venv/bin/activate
+            
+            if [ -f "../requeriments.txt" ]; then
+                pip install -r ../requeriments.txt
+                echo "Dependencies installed"
+            else
+                echo "File not found"
+            fi
+            
+            deactivate
+
+
+      - name: Restart PM2
+        run: |
+                sudo pm2 restart React-Dev-App
+                sudo pm2 restart WebServer
