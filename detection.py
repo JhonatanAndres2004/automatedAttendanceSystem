@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv 
 import cv2
 import json
+from datetime import datetime
 
 
 students_found = []
@@ -21,6 +22,10 @@ def main():
     classroomFolder = r"../../classroom"
     studentstxt = "../../students/students_downloaded.txt"
     
+    s3 = boto3.client('s3',
+                  aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("AWS_REGION"))
 
     with open(studentstxt, "r", encoding="utf-8") as file:
         student_array = [line.strip() for line in file]
@@ -52,7 +57,7 @@ def main():
             responseRecognition = client.compare_faces(
                 SourceImage={'Bytes': student_id_photo_bytes},
                 TargetImage={'Bytes': camera_file_bytes},
-                SimilarityThreshold=80
+                SimilarityThreshold=70
             )
 
             image_height, image_width, _ = image.shape
@@ -80,8 +85,10 @@ def main():
         boundingBoxRecognizedFaces.append(boundingBoxRecognizedFacesithImage)
         
         os.makedirs("../../StudentsFoundInClassroom", exist_ok=True)
-        output_path = rf"../../StudentsFoundInClassroom/faces_in_classroom_{m}_{recognized_counter}.jpeg"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = rf"../../StudentsFoundInClassroom/faces_in_classroom_{m}_{timestamp}.jpeg"
         cv2.imwrite(output_path, image)
+        s3.upload_file(output_path, os.getenv("S3_BUCKET_NAME"), )
         print(f"Annotated image saved to {output_path}")
         
         m += 1

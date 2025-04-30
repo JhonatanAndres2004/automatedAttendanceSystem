@@ -206,14 +206,14 @@ function Attendance() {
       .then((res) => res.json())
       .then((data) => {
         let dates = data.records || []
-        dates.forEach((date) =>{
-          date.attendance_date = new Date(date.attendance_date).toLocaleDateString("en-GB",{
-            timeZone: "America/Bogota", 
-            day: "2-digit",
-            month: "short",
-            year: "numeric"
-          })
-        })
+        // dates.forEach((date) =>{
+        //   date.attendance_date = new Date(date.attendance_date).toLocaleDateString("en-GB",{
+        //     timeZone: "America/Bogota", 
+        //     day: "2-digit",
+        //     month: "short",
+        //     year: "numeric"
+        //   })
+        // })
         setStudentRecords(dates || []);
         setSelectedStudent(studentName);
         setShowHistorics(true);
@@ -643,7 +643,7 @@ function Attendance() {
       <div className="app-header">
         <h1 className="app-title">Facial Recognition Attendance System</h1>
         <img 
-          src="https://pbs.twimg.com/profile_images/1463231524891987972/2KMlg1It_400x400.jpg" 
+          src="https://www.uninorte.edu.co/o/uninorte-theme/images/uninorte/footer_un/logo.png" 
           alt="Logo" 
           className="app-logo" 
         />
