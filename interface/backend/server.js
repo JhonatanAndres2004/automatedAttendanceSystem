@@ -18,6 +18,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
+console.log(process.env.MYSQL_PASSWORD)
+console.log(process.env.MYSQL_HOST)
 //  Function to handle MySQL reconnection
 let db;
 
@@ -332,10 +335,12 @@ app.post("/run-backend", (req, res) => {
 });
 
 
-const PHOTOS_DIR = path.join(__dirname, "../../StudentsFoundInClassroom");
 
+let PHOTOS_DIR
 // Endpoint to get list of all classroom photos
-app.get("/classroom-photos", (req, res) => {
+app.get("/classroom-photos/:table", (req, res) => {
+  const {table} = req.params
+  PHOTOS_DIR = path.join(__dirname, `../../StudentsFoundInClassroom/${table}`);
   try {
     // Ensure directory exists
     if (!fs.existsSync(PHOTOS_DIR)) {
@@ -374,6 +379,7 @@ app.get("/photo/:filename", (req, res) => {
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: "Photo not found" });
   }
+   
   
   // Serve the file
   res.sendFile(filePath);

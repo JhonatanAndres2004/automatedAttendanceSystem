@@ -5,6 +5,9 @@ import boto3
 import detection
 import argparse
 import get_frame
+import os
+import time
+from datetime import datetime
 
 # Configure command-line arguments
 parser = argparse.ArgumentParser(description='Script to take student attendance')
@@ -18,7 +21,7 @@ table_name = args.table
 # Load environment variables
 load_dotenv()
 
-folders = ["../../students", "../../StudentsFoundInClassroom", "../../classroom"]
+folders = ["../../students", "../../classroom"] #, "../../StudentsFoundInClassroom"
 
 # Delete only files (keep the folders)
 for folder in folders:
@@ -30,8 +33,27 @@ for folder in folders:
     else:
         os.makedirs(folder)
 
+
+def delete_old_pictures(folder_path):
+    today = datetime.today().date()
+    if os.path.exists(folder_path):
+        for filename in os.listdir(folder_path):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')):
+                file_path = os.path.join(folder_path, filename)
+                try:
+                    mod_time = os.path.getmtime(file_path)
+                    file_date = datetime.fromtimestamp(mod_time).date()
+                    print(rf"Todays date: {today} last mod date {file_date}")
+                    if file_date != today:
+                        os.remove(file_path)
+                        print(f"Deleted: {filename}")
+                except Exception as e:
+                    print(f"Error with {filename}: {e}")
+
+delete_old_pictures(rf"../../StudentsFoundInClassroom/{table_name}")
+
 # Get frame from camera
-#get_frame.main()
+get_frame.main()
 
 # Set up MySQL connection
 conn = mysql.connector.connect(
@@ -74,7 +96,7 @@ for student in students:
         print(f" Failed to download {s3_key}: {str(e)}")
 
 classroom_folder = "../../classroom"
-# #Definir el mapeo de archivos de aula específicos para cada curso
+# # #Definir el mapeo de archivos de aula específicos para cada curso
 # classroom_file_map = {
 #     "robotica": "int_robotica11.jpg",
 #     "diseno1": "diseno1_1.jpg",
@@ -106,4 +128,4 @@ with open(txt_file_path, "w", encoding="utf-8") as file:
         file.write(student + "\n")
 
 # Run detection
-detection.main()
+detection.main(table_name)

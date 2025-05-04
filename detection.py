@@ -1,4 +1,3 @@
-
 import boto3
 import json
 import os
@@ -6,10 +5,27 @@ from dotenv import load_dotenv
 import cv2
 import json
 from datetime import datetime
-
-
+from PIL import Image
 students_found = []
-def main():
+
+def create_thumbnail(input_path ,output_path , size=(512, 512)):
+    """
+    Creates a thumbnail of the image at input_path and saves it to output_path.
+    
+    Parameters:
+    - input_path: str, path to the original image.
+    - output_path: str, path where the thumbnail will be saved.
+    - size: tuple(int, int), max size (width, height) of the thumbnail.
+    """
+    try:
+        with Image.open(input_path) as img:
+            img.thumbnail(size, Image.LANCZOS)  # High-quality downsampling
+            img.save( output_path, optimize=True, quality=70)  # Lower quality for degradation
+            print(f"Thumbnail saved to ")
+    except Exception as e:
+        print(f"Error creating thumbnail: {e}")
+
+def main(table):
     dotenv_path = os.path.join("..", 'interface', '.env')
     load_dotenv()
 
@@ -57,7 +73,7 @@ def main():
             responseRecognition = client.compare_faces(
                 SourceImage={'Bytes': student_id_photo_bytes},
                 TargetImage={'Bytes': camera_file_bytes},
-                SimilarityThreshold=70
+                SimilarityThreshold=50
             )
 
             image_height, image_width, _ = image.shape
@@ -85,10 +101,13 @@ def main():
         boundingBoxRecognizedFaces.append(boundingBoxRecognizedFacesithImage)
         
         os.makedirs("../../StudentsFoundInClassroom", exist_ok=True)
+        os.makedirs(rf"../../StudentsFoundInClassroom/{table}", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = rf"../../StudentsFoundInClassroom/faces_in_classroom_{m}_{timestamp}.jpeg"
+        output_path = rf"../../StudentsFoundInClassroom/{table}/faces_in_classroom_{timestamp}.jpeg"
         cv2.imwrite(output_path, image)
-        s3.upload_file(output_path, os.getenv("S3_BUCKET_NAME"), )
+        thumbnail_path =rf"../../thumnbail_{table}.jpeg"
+        create_thumbnail(output_path,thumbnail_path )
+        s3.upload_file(thumbnail_path, os.getenv("S3_BUCKET_NAME"),rf"thumbnails/{table}/faces_in_classroom_{timestamp}.jpeg" )
         print(f"Annotated image saved to {output_path}")
         
         m += 1
@@ -97,4 +116,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

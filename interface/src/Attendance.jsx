@@ -28,7 +28,7 @@ function Attendance() {
   const [sysPrediction, SetSysPrediction] = useState([]);
 
   const table = COURSE_TABLES[selectedCourse];
-
+  
   // Window resize handler
   useEffect(() => {
     const handleResize = () => {
@@ -79,17 +79,24 @@ function Attendance() {
     fetchStudents();
   }, [table]);
 
-  const fetchClassroomPhotos = () => {
-    fetch(`${API_URL}/classroom-photos`)
+  const fetchClassroomPhotos = (table) => {
+    fetch(`${API_URL}/classroom-photos/${table}`)
       .then((res) => res.json())
       .then((data) => {
         setClassroomPhotos(data.photos || []);
         if (data.photos && data.photos.length > 0) {
           setSelectedPhoto(data.photos[0]);
         }
+        else{
+          setSelectedPhoto(null);
+        }
       })
       .catch((err) => console.error("Failed to obtain photos:", err));
   };
+  useEffect(() => {
+    fetchClassroomPhotos(table);
+  }, [table]);
+
 
   const takeAttendance = () => {
     setIsLoading(true);
@@ -110,7 +117,7 @@ function Attendance() {
             
         });
         setRecognizedStudents(updatedToggles);
-        fetchClassroomPhotos();
+        fetchClassroomPhotos(table);
         setIsLoading(false);
         setIsMobileMenuOpen(false);
       })
@@ -248,7 +255,7 @@ function Attendance() {
         })
         .catch(err => console.error("Error retrieving attendance matrix:", err));
     }, [course]);
-
+  fetchClassroomPhotos(table)
     return (
       <div className="matrix-container">
         <h2 className="matrix-title">Attendance Record</h2>
@@ -294,7 +301,9 @@ function Attendance() {
           <div 
             key={course}
             className={`folder-tab ${selectedCourse === course ? 'active-tab' : ''}`}
-            onClick={() => setSelectedCourse(course)}
+            onClick={() =>{ setSelectedCourse(course)
+              fetchClassroomPhotos(COURSE_TABLES[course]);
+            }}
           >
             <div className="tab-content">
               <span className="tab-text">{course}</span>
