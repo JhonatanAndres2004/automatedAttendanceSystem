@@ -18,6 +18,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+
+console.log(process.env.MYSQL_PASSWORD)
+console.log(process.env.MYSQL_HOST)
 //  Function to handle MySQL reconnection
 let db;
 
@@ -147,6 +150,45 @@ app.post('/update-attendances/:table', (req, res) => {
     });
   });
 });
+
+app.post('/metrics', (req, res) => {
+  const { TP, FP, FN } = req.body;
+
+  // First, select the current TP, FP, FN
+  const selectSql = 'SELECT TP, FP, FN FROM metrics WHERE id = ?'; 
+  const updateSql = 'UPDATE metrics SET TP = ?, FP = ?, FN = ? WHERE id = ?';
+
+  const recordId = 1; 
+
+  db.query(selectSql, [recordId], (err, results) => {
+    if (err) {
+      console.error('Database SELECT error:', err);
+      return res.status(500).json({ error: 'Database select error' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    // Get existing values
+    const current = results[0];
+
+    // Calculate new totals
+    const newTP = current.TP + TP;
+    const newFP = current.FP + FP;
+    const newFN = current.FN + FN;
+
+    // Now update the database with the new totals
+    db.query(updateSql, [newTP, newFP, newFN, recordId], (err, result) => {
+      if (err) {
+        console.error('Database UPDATE error:', err);
+        return res.status(500).json({ error: 'Database update error' });
+      }
+      res.status(200).json({ message: 'Data updated successfully' });
+    });
+  });
+});
+
 
 
 app.get('/attendance-matrix/:table', async (req, res) => {
@@ -293,10 +335,12 @@ app.post("/run-backend", (req, res) => {
 });
 
 
-const PHOTOS_DIR = path.join(__dirname, "../../StudentsFoundInClassroom");
 
+let PHOTOS_DIR
 // Endpoint to get list of all classroom photos
-app.get("/classroom-photos", (req, res) => {
+app.get("/classroom-photos/:table", (req, res) => {
+  const {table} = req.params
+  PHOTOS_DIR = path.join(__dirname, `../../StudentsFoundInClassroom/${table}`);
   try {
     // Ensure directory exists
     if (!fs.existsSync(PHOTOS_DIR)) {
@@ -335,6 +379,7 @@ app.get("/photo/:filename", (req, res) => {
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: "Photo not found" });
   }
+   
   
   // Serve the file
   res.sendFile(filePath);
