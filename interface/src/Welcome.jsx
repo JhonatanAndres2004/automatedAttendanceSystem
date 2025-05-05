@@ -9,21 +9,40 @@ function Welcome({ onContinue }) {
   const [verificationResult, setVerificationResult] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
   useEffect(() => {
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.error("Error when accessing camera:", err);
-      }
-    };
-
     startCamera();
+
+    return () => {
+      stopCamera();
+    };
   }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+      }
+    } catch (err) {
+      console.error("Error when accessing camera:", err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      streamRef.current = null;
+      //Stop and clean all streams      
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    }
+  };
 
   const takePhoto = () => {
     const video = videoRef.current;
@@ -46,15 +65,10 @@ function Welcome({ onContinue }) {
     setCapturedImage(null);
     setVerificationResult(null);
     
-    // Reset camera
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.error("Error initializing the camera:", err);
-    }
+    // Stop streaming and then reset
+    stopCamera();
+    
+    await startCamera();
   };
 
   const verifyFace = async () => {
@@ -81,6 +95,9 @@ function Welcome({ onContinue }) {
       setVerificationResult(result);
 
       if (result.matched) {
+        // Detener la cámara cuando hay una verificación exitosa
+        stopCamera();
+        
         setTimeout(() => {
           onContinue();
         }, 1500);
@@ -165,5 +182,5 @@ function Welcome({ onContinue }) {
     </div>
   );
 }
-//If verified. verificationResult changed state and the elements in attendance are rendered
+
 export default Welcome;

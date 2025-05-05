@@ -45,7 +45,7 @@ app.post('/compare-faces', async (req, res) => {
     const { capturedImage } = req.body;
     
     if (!capturedImage) {
-      console.log("Error: No capturedImage provided in request body");
+      console.log("Error: No captured Image provided in request body");
       return res.status(400).json({ 
         matched: false, 
         message: "No image provided" 
@@ -60,7 +60,7 @@ app.post('/compare-faces', async (req, res) => {
     // Decode base64 image
     const imageBuffer = Buffer.from(base64Data, 'base64');
     
-    console.log("Usando imágenes desde S3");
+    console.log("Using S3 images");
     
     const referenceImages = ['jhonatan.jpg', 'eduardo.jpg', 'diego.jpg'];
     
@@ -80,7 +80,7 @@ app.post('/compare-faces', async (req, res) => {
         const getObjectCommand = new GetObjectCommand(s3Params);
         const s3Response = await s3Client.send(getObjectCommand);
         
-        console.log(`Image ${imageName} downloades successfully`);
+        console.log(`Image ${imageName} downloaded successfully`);
         //Convert to buffer
         const chunks = [];
         for await (const chunk of s3Response.Body) {
