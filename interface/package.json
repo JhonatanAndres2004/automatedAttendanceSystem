@@ -10,20 +10,26 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.799.0",
+    "@aws-sdk/client-s3": "^3.802.0",
+    "aws-sdk": "^2.1692.0",
     "axios": "^1.8.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "multer": "^1.4.5-lts.2",
     "mysql": "^2.18.1",
     "mysql2": "^3.14.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-google-charts": "^5.2.1"
+    "react-google-charts": "^5.2.1",
+    "react-router-dom": "^7.5.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-basic-ssl": "^2.0.0",
     "@vitejs/plugin-react-swc": "^3.8.0",
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.1.0",

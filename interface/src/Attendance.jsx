@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import axios from 'axios';
 import { Chart } from "react-google-charts";
 import './Attendance.css';
+import Welcome from './Welcome'; // Import the Welcome component
+import './Welcome.css'; // Import the Welcome CSS
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -12,6 +14,7 @@ const COURSE_TABLES = {
 };
 
 function Attendance() {
+  const [showWelcome, setShowWelcome] = useState(true); // State to control welcome screen
   const [students, setStudents] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState("Introducción a la Robótica Móvil");
   const [recognizedStudents, setRecognizedStudents] = useState({});
@@ -28,6 +31,11 @@ function Attendance() {
   const [sysPrediction, SetSysPrediction] = useState([]);
 
   const table = COURSE_TABLES[selectedCourse];
+  
+  // Handle welcome screen continue
+  const handleContinue = () => {
+    setShowWelcome(false);
+  };
   
   // Window resize handler
   useEffect(() => {
@@ -76,8 +84,11 @@ function Attendance() {
   };
   
   useEffect(() => {
-    fetchStudents();
-  }, [table]);
+    // Only fetch students if not showing welcome screen
+    if (!showWelcome) {
+      fetchStudents();
+    }
+  }, [table, showWelcome]);
 
   const fetchClassroomPhotos = (table) => {
     fetch(`${API_URL}/classroom-photos/${table}`)
@@ -93,9 +104,13 @@ function Attendance() {
       })
       .catch((err) => console.error("Failed to obtain photos:", err));
   };
+  
   useEffect(() => {
-    fetchClassroomPhotos(table);
-  }, [table]);
+    // Only fetch photos if not showing welcome screen
+    if (!showWelcome) {
+      fetchClassroomPhotos(table);
+    }
+  }, [table, showWelcome]);
 
 
   const takeAttendance = () => {
@@ -646,6 +661,11 @@ function Attendance() {
       );
     }
   };
+
+  // Render welcome screen if showWelcome is true
+  if (showWelcome) {
+    return <Welcome onContinue={handleContinue} />;
+  }
 
   return (
     <div className="attendance-system">

@@ -2,22 +2,144 @@ import express from "express";
 import mysql from "mysql2";
 import cors from "cors";
 import dotenv from "dotenv";
-import { exec } from "child_process";
-import path, { dirname } from "path";
+import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
-import https from "https"
-import os, { platform } from "os";
+import https from "https";
+import os from "os";
+import { exec } from "child_process";
+import { RekognitionClient, CompareFacesCommand } from "@aws-sdk/client-rekognition";
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({path:"../../.env"});
 
+
+const rekognitionClient = new RekognitionClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+});
+
+const s3Client = new S3Client({
+  region:'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+});
+
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for handling images
 
+// Face comparison endpoint 
+app.post('/compare-faces', async (req, res) => {
+  try {
+    console.log("Endpoint invoqued: /compare-faces");
+    
+    const { capturedImage } = req.body;
+    
+    if (!capturedImage) {
+      console.log("Error: No capturedImage provided in request body");
+      return res.status(400).json({ 
+        matched: false, 
+        message: "No image provided" 
+      });
+    }
+    
+    let base64Data = capturedImage;
+    if (capturedImage.includes('data:image')) {
+      base64Data = capturedImage.split(',')[1];
+    }
+    
+    // Decode base64 image
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    
+    console.log("Usando imágenes desde S3");
+    
+    const referenceImages = ['jhonatan.jpg', 'eduardo.jpg', 'diego.jpg'];
+    
+    console.log("Client S3 initialized. Bucket:", process.env.S3_BUCKET_NAME);
+    
+    for (const imageName of referenceImages) {
+      try {
+        console.log(`Procesando imagen de referencia: ${imageName}`);
+        
+        // Obbtain S3 Image
+        const s3Params = {
+          Bucket: process.env.S3_BUCKET_NAME,
+          Key: imageName
+        };
+        
+        console.log("Parameters S3:", JSON.stringify(s3Params));
+        const getObjectCommand = new GetObjectCommand(s3Params);
+        const s3Response = await s3Client.send(getObjectCommand);
+        
+        console.log(`Image ${imageName} downloades successfully`);
+        //Convert to buffer
+        const chunks = [];
+        for await (const chunk of s3Response.Body) {
+          chunks.push(chunk);
+        }
+        const referenceImageBuffer = Buffer.concat(chunks);
+        
+        console.log(`Comparing with ${imageName}...`);
+        
+        const params = {
+          SourceImage: {
+            Bytes: referenceImageBuffer
+          },
+          TargetImage: {
+            Bytes: imageBuffer
+          },
+          SimilarityThreshold: 70 
+        };
+        
+        const command = new CompareFacesCommand(params);
+        const compareFacesResponse = await rekognitionClient.send(command);
+        
+        console.log(`Comparison to ${imageName}:`, 
+                   compareFacesResponse.FaceMatches ? 
+                   `Found ${compareFacesResponse.FaceMatches.length} coincidence` : 
+                   "No coincidence found, intruder");
+          
+        if (compareFacesResponse.FaceMatches && compareFacesResponse.FaceMatches.length > 0) {
+          const similarity = compareFacesResponse.FaceMatches[0].Similarity;
+          const personName = imageName.split('.')[0];
+          
+          console.log(`Match with ${personName}, similarity: ${similarity}%`);
+          
+          return res.json({
+            matched: true,
+            similarity: similarity,
+            person: personName,
+            message: `Face verified with ${similarity.toFixed(2)}% confidence as ${personName}`
+          });
+        }
+      } catch (imageError) {
+        console.error(`Error ${imageName}:`, imageError);
+      }
+    }
+    console.log("No coincidence found");
+    return res.json({
+      matched: false,
+      message: "No matching face found among the reference images"
+    });
+    
+  } catch (error) {
+    console.error("Endpoint error:", error);
+    return res.status(500).json({ 
+      matched: false, 
+      message: "Server error during face verification",
+      error: error.message
+    });
+  }
+});
 
 console.log(process.env.MYSQL_PASSWORD)
 console.log(process.env.MYSQL_HOST)

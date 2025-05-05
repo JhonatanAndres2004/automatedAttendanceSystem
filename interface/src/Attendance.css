@@ -48,7 +48,7 @@
 .folder-tab {
   padding: 12px 20px;
   background-color: #e9ecef;
-  border-radius: 8px 8px 0 0;
+  border-radius: 8px;
   margin-right: 4px;
   min-width: 160px;
   cursor: pointer;
@@ -553,6 +553,12 @@ input:checked + .toggle-slider:before {
   background-color: #e8f5e9;
 }
 
+.empty-state{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 1024px) {
   .stats-container {
@@ -598,7 +604,7 @@ input:checked + .toggle-slider:before {
     min-width: unset;
   }
   
-  .action-button {
+  .controls-section .action-button {
     flex-basis: 100%;
   }
   
@@ -608,6 +614,11 @@ input:checked + .toggle-slider:before {
   
   .header-bar h2 {
     font-size: 20px;
+  }
+
+  .folder-tabs div{
+    flex-basis: 100%;
+    margin-bottom: 5px;
   }
 }
 
@@ -698,3 +709,4 @@ input:checked + .toggle-slider:before {
     font-size: 16px;
   }
 }
+
