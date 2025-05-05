@@ -7,6 +7,7 @@ import './Welcome.css'; // Import the Welcome CSS
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+
 const COURSE_TABLES = {
   "Introducción a la Robótica Móvil": "robotica",
   "Diseño Electrónico 1": "diseno1",
@@ -228,14 +229,14 @@ function Attendance() {
       .then((res) => res.json())
       .then((data) => {
         let dates = data.records || []
-        // dates.forEach((date) =>{
-        //   date.attendance_date = new Date(date.attendance_date).toLocaleDateString("en-GB",{
-        //     timeZone: "America/Bogota", 
-        //     day: "2-digit",
-        //     month: "short",
-        //     year: "numeric"
-        //   })
-        // })
+        dates.forEach((date) =>{
+          date.attendance_date = new Date(date.attendance_date).toLocaleDateString("en-GB",{
+ 
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          })
+        })
         setStudentRecords(dates || []);
         setSelectedStudent(studentName);
         setShowHistorics(true);
@@ -263,14 +264,14 @@ function Attendance() {
     const [matrix, setMatrix] = useState([]);
   
     useEffect(() => {
-      axios.get(`${API_URL}/attendance-matrix/${course}`)
+      axios.get(`${API_URL}/attendance-matrix/${table}`)
         .then(res => {
           setDates(res.data.dates);
           setMatrix(res.data.data);
         })
         .catch(err => console.error("Error retrieving attendance matrix:", err));
     }, [course]);
-  fetchClassroomPhotos(table)
+  //fetchClassroomPhotos(table)
     return (
       <div className="matrix-container">
         <h2 className="matrix-title">Attendance Record</h2>
