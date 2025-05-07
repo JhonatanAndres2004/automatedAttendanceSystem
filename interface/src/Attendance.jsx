@@ -432,7 +432,7 @@ function Attendance() {
             >
               <span className="back-icon">←</span> Back to Attendance
             </button>
-            <h2>Class Attendance Records</h2>
+            <h2>Class Attendance Records of {selectedCourse}</h2>
           </div>
           <AttendanceMatrix course={table}/>
         </div>

@@ -171,7 +171,7 @@ function Welcome({ onContinue }) {
           {verificationResult && (
             <div className={`verification-result ${verificationResult.matched ? 'success' : 'error'}`}>
               {verificationResult.matched ? (
-                <p>✅ Verification successful! Redirecting...</p>
+                <p>✅ Verification successful! Hi, {verificationResult.person}...</p>
               ) : (
                 <p>❌ Verification failed. {verificationResult.message || 'Please try again.'}</p>
               )}
