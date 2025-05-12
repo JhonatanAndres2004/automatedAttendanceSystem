@@ -73,7 +73,7 @@ def main(table):
             responseRecognition = client.compare_faces(
                 SourceImage={'Bytes': student_id_photo_bytes},
                 TargetImage={'Bytes': camera_file_bytes},
-                SimilarityThreshold=35
+                SimilarityThreshold=50
             )
 
             image_height, image_width, _ = image.shape

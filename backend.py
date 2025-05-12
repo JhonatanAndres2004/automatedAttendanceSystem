@@ -103,8 +103,8 @@ classroom_file_map = {
     "diseno2": "diseno2_9.jpg"
 }
 
-# Descargar la imagen específica del aula según el curso seleccionado
-'''try:
+'''# Descargar la imagen específica del aula según el curso seleccionado
+try:
 #     # Obtener el nombre de archivo correcto basado en la tabla seleccionada
     classroom_file = classroom_file_map.get(table_name)
    

@@ -30,6 +30,7 @@ function Attendance() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [sysPrediction, SetSysPrediction] = useState([]);
+  const [recognized, SetRecognized] = useState([]);
 
   const table = COURSE_TABLES[selectedCourse];
   
@@ -217,39 +218,39 @@ function Attendance() {
       })
       .catch((err) => console.error("Error saving attendance:", err));
   };
+/////
+const partialAttendance = (recognized) => {
+  const studentsToUpdate = recognized
+  const studentsNF = students.map((s =>s.student_name )).filter(name => !studentsToUpdate.includes(name))
+  console.log(studentsToUpdate)
+  console.log(studentsNF)
+  
 
-  //
-  const partialAttendance = (recognized) => {
-    const studentsToUpdate = recognized
-    const studentsNF = students.map((s =>s.student_name )).filter(name => !studentsToUpdate.includes(name))
-    console.log(studentsToUpdate)
-    console.log(studentsNF)
+  if (studentsToUpdate.length === 0) {
+    alert("There is no attendance to save");
+    return;
+  }
+  console.log(table)
+
+  fetch(`${API_URL}/update-recognized/${table}`, {
+    method: "POST",
+
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ studentsFound: studentsToUpdate,
+      studentsNotFound: studentsNF
+     }),
+  })
     
-  
-    if (studentsToUpdate.length === 0) {
-      alert("There is no attendance to save");
-      return;
-    }
-    console.log(table)
-  
-    fetch(`${API_URL}/update-recognized/${table}`, {
-      method: "POST",
-  
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studentsFound: studentsToUpdate,
-        studentsNotFound: studentsNF
-       }),
-    })
-      
-      .catch((err) => console.error("Error saving attendance:", err));
-  };
-  //
-  const toggleStudent = (name) => {
-    setRecognizedStudents((prev) => ({
-      ...prev,
-      [name]: !prev[name],
-    }));
-  };
+    .catch((err) => console.error("Error saving attendance:", err));
+};
+
+/////
+const toggleStudent = (name) => {
+  setRecognizedStudents((prev) => ({
+    ...prev,
+    [name]: !prev[name],
+  }));
+};
 
   const fetchHistorics = (studentName) => {
     fetch(`${API_URL}/historics/${table}_records/${studentName}`)
@@ -291,7 +292,7 @@ function Attendance() {
     const [matrix, setMatrix] = useState([]);
   
     useEffect(() => {
-      axios.get(`${API_URL}/attendance-matrix/${table}`)
+      axios.get(`${API_URL}/attendance-matrix-dev/${table}`)
         .then(res => {
           setDates(res.data.dates);
           setMatrix(res.data.data);
@@ -322,9 +323,11 @@ function Attendance() {
                   {dates.map(date => (
                     <td
                       key={date}
-                      className={row[date] === 1 ? "present" : "absent"}
                     >
-                      {row[date] === 1 ? "✓" : "✗"}
+                    {row[date].map((dates) =>
+                      <span className={dates === 1 ? "present" : "absent"}  >{dates === 1 ? "✓" : "✗"}</span>
+                    )}
+                      {/* {row[date] === 1 ? "✓" : "✗"} */}
                     </td>
                   ))}
                 </tr>
