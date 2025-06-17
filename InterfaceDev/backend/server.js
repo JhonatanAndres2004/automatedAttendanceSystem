@@ -2,7 +2,7 @@ import express from "express";
 import mysql from "mysql2";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
+import path, { format } from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import https from "https";
@@ -270,7 +270,8 @@ app.post('/update-attendances/:table', (req, res) => {
     });
   });
 });
-//
+
+///
 app.post('/update-recognized/:table', (req, res) => {
   const { studentsFound, studentsNotFound } = req.body;
   const { table } = req.params;
@@ -321,10 +322,49 @@ app.post('/update-recognized/:table', (req, res) => {
     });
   });
 });
-//
+
+///
+
+app.post('/metrics', (req, res) => {
+  const { TP, FP, FN } = req.body;
+
+  // First, select the current TP, FP, FN
+  const selectSql = 'SELECT TP, FP, FN FROM metrics WHERE id = ?'; 
+  const updateSql = 'UPDATE metrics SET TP = ?, FP = ?, FN = ? WHERE id = ?';
+
+  const recordId = 1; 
+
+  db.query(selectSql, [recordId], (err, results) => {
+    if (err) {
+      console.error('Database SELECT error:', err);
+      return res.status(500).json({ error: 'Database select error' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    // Get existing values
+    const current = results[0];
+
+    // Calculate new totals
+    const newTP = current.TP + TP;
+    const newFP = current.FP + FP;
+    const newFN = current.FN + FN;
+
+    // Now update the database with the new totals
+    db.query(updateSql, [newTP, newFP, newFN, recordId], (err, result) => {
+      if (err) {
+        console.error('Database UPDATE error:', err);
+        return res.status(500).json({ error: 'Database update error' });
+      }
+      res.status(200).json({ message: 'Data updated successfully' });
+    });
+  });
+});
 
 
-//
+
 app.get('/attendance-matrix-dev/:table', async (req, res) => {
   const { table } = req.params;
 
@@ -375,110 +415,6 @@ app.get('/attendance-matrix-dev/:table', async (req, res) => {
   }
 });
 
-//
-app.post('/metrics', (req, res) => {
-  const { TP, FP, FN } = req.body;
-
-  // First, select the current TP, FP, FN
-  const selectSql = 'SELECT TP, FP, FN FROM metrics WHERE id = ?'; 
-  const updateSql = 'UPDATE metrics SET TP = ?, FP = ?, FN = ? WHERE id = ?';
-
-  const recordId = 1; 
-
-  db.query(selectSql, [recordId], (err, results) => {
-    if (err) {
-      console.error('Database SELECT error:', err);
-      return res.status(500).json({ error: 'Database select error' });
-    }
-
-    if (results.length === 0) {
-      return res.status(404).json({ error: 'Record not found' });
-    }
-
-    // Get existing values
-    const current = results[0];
-
-    // Calculate new totals
-    const newTP = current.TP + TP;
-    const newFP = current.FP + FP;
-    const newFN = current.FN + FN;
-
-    // Now update the database with the new totals
-    db.query(updateSql, [newTP, newFP, newFN, recordId], (err, result) => {
-      if (err) {
-        console.error('Database UPDATE error:', err);
-        return res.status(500).json({ error: 'Database update error' });
-      }
-      res.status(200).json({ message: 'Data updated successfully' });
-    });
-  });
-});
-
-app.post('/partialResults', (req, res) => {
-  const {partialResults,course} = req.body;
-  console.log(partialResults)
-  console.log(course)
-  partialResults.stringify()
-  const queryToMake= `INSERT INTO partialResultsTable (partialResults, course)
-  values ?`
-
-});
-
-
-app.get('/attendance-matrix/:table', async (req, res) => {
-  const { table } = req.params;
-
-  const allowedTables = ["robotica", "diseno1", "diseno2"];
-  if (!allowedTables.includes(table)) {
-    return res.status(400).json({ error: "Invalid table" });
-  }
-
-  const recordTable = `${table}_records`;
-
-  try {
-    // 1. Fetch all unique attendance dates
-    const [dateResults] = await db.promise().query(`
-      SELECT DISTINCT DATE(attendance_date) AS date FROM ${recordTable}
-    `);
-    const dates = dateResults.map(row => new Date(row.date).toISOString().split("T")[0]).sort();
-
-    // 2. Fetch all students from the base table
-    const [studentResults] = await db.promise().query(`
-      SELECT student_name FROM ${table}
-    `);
-    const studentNames = studentResults.map(row => row.student_name);
-
-    // 3. Fetch all attendance records
-    const [attendanceResults] = await db.promise().query(`
-      SELECT student_name, DATE(attendance_date) AS date FROM ${recordTable}
-    `);
-
-    // 4. Convert attendance records to a Set for quick lookup
-    const attendanceSet = new Set(
-      attendanceResults.map(({ student_name, date }) => {
-        const formatedDate = new Date(date).toISOString().split("T")[0]
-        return `${student_name}_${formatedDate}`
-      })
-    );
-
-    // 5. Build matrix
-    const data = studentNames.map(name => {
-      const row = { student_name: name };
-      dates.forEach(date => {
-        const formattedDate = new Date(date).toISOString().split("T")[0];
-        const key = `${name}_${formattedDate}`;
-        row[formattedDate] = attendanceSet.has(key) ? 1 : 2;
-      });
-      return row;
-    });
-    //const formattedDates = new Date(dates).toISOString().split("T")[0];
-    res.json({ dates, data });
-
-  } catch (err) {
-    console.error("Error fetching attendance matrix:", err);
-    res.status(500).json({ error: "Database error" });
-  }
-});
 
 
 app.post("/run-backend", (req, res) => {
