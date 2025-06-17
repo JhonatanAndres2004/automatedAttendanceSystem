@@ -311,6 +311,15 @@ app.post('/metrics', (req, res) => {
   });
 });
 
+app.post('/partialResults', (req, res) => {
+  const {partialResults,course} = req.body;
+  console.log(partialResults)
+  console.log(course)
+  partialResults.stringify()
+  const queryToMake= `INSERT INTO partialResultsTable (partialResults, course)
+  values ?`
+
+});
 
 
 app.get('/attendance-matrix/:table', async (req, res) => {

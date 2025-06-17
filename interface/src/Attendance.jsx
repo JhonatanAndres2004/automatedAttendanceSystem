@@ -30,7 +30,7 @@ function Attendance() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [sysPrediction, SetSysPrediction] = useState([]);
-
+  const partialResults=[];
   const table = COURSE_TABLES[selectedCourse];
   
   // Handle welcome screen continue
@@ -125,8 +125,10 @@ function Attendance() {
       .then((data) => {
         const recognized = data.recognized || [];
         const updatedToggles = { ...recognizedStudents };
+        partialResults=[]
         recognized.forEach((name) => {
           updatedToggles[name] = true;
+          partialResults.push(name);
           if (!sysPrediction.includes(name)){
             SetSysPrediction((prev) => [...prev, name]);
           }
@@ -175,7 +177,7 @@ function Attendance() {
     })
 
     console.log (`TP:${TP}, FP:${FP}, FN:${FN}`)
-
+    console.log(`Partial results were ${partialResults}`)
     fetch(`${API_URL}/metrics`, {
       method: 'POST',
       headers: {
@@ -195,6 +197,23 @@ function Attendance() {
       console.error('Error:', error);
     });
 
+    fetch(`${API_URL}/partialResults`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        partialResults:partialResults,
+        course: selectedCourse
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Success:', data);
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
 
     fetch(`${API_URL}/update-attendances/${table}`, {
       method: "POST",
