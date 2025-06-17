@@ -4,7 +4,7 @@ An automated attendance management system that leverages facial recognition tech
 
 # Video of the project
 
-Link: [text](https://www.youtube.com/watch?v=Iy_daGBITbk)
+Link: [Attendance Tracking System video](https://www.youtube.com/watch?v=Iy_daGBITbk)
 
 # 🎯 Overview
 
